@@ -93,13 +93,17 @@ def to_matrix(input, shape1, shape2):
         count_col += 1
     return matrix.tolist()
 
-
+# layer convolution 2d
 def con2d(x,W,b,strides=1):
     x=tf.nn.conv2d(x,W,strides=[1,strides,strides,1],padding='SAME')
     x=tf.nn.bias_add(x,b)
     return tf.nn.relu(x)
+
+# layer maxpooling 2d
 def maxpooling2d (x,k=2):
     return tf.nn.max_pool(x,ksize=[1,k,k,1],strides=[1,k,k,1],padding='SAME')
+
+# mang CNN voi 1 conv2d,1 maxpooling 2d va 2 hidden layer 
 def conv_net(x,weights,biases,drop_out):
     conv1=con2d(x,weights['wc1'],biases['bc1'])
     conv1=maxpooling2d(conv1,k=2)
@@ -111,16 +115,21 @@ def conv_net(x,weights,biases,drop_out):
     fc2=tf.nn.tanh(fc2)
     out = tf.add(tf.matmul(fc2, weights['out']), biases['out'])
     return out
+
+# loss function bo sung them he so ri,fi
 def enhance_loss(labels,logits,weights,rf):
     return tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=labels,logits=logits)-tf.matmul(rf,weights['w_rf']))
  
     
 if __name__ == "__main__":
+    
+    # Khoi tao cac gia tri 
     learning_rate= 0.001
     epochs=10
     batch_size= 100
     n_classes=2
     drop_out=0.75
+    
     # Store layers weight & bias
     weights = {
         # 2x2 conv, 1 input, 100 outputs
@@ -139,6 +148,8 @@ if __name__ == "__main__":
         'bd2': tf.Variable(tf.random.normal([256])),
         'out': tf.Variable(tf.random.normal([n_classes])),
     }
+    
+    
     # load data: input,label, ri,fi
     vectors=returnInput()
     vector=[]
@@ -161,7 +172,8 @@ if __name__ == "__main__":
     y= tf.compat.v1.placeholder(tf.float32,[None,n_classes])
     z= tf.compat.v1.placeholder(tf.float32,[None,2])
     keep_prob=tf.compat.v1.placeholder(tf.float32)
-
+    
+    #su dung mang da tao tinh predict
     predict=conv_net(x,weights,biases,drop_out)
     predict=tf.nn.softmax(predict)
 
@@ -180,6 +192,7 @@ if __name__ == "__main__":
     with tf.compat.v1.Session() as sess:
       sess.run(init)
       for epoch in range(1,epochs+1,1):
+          # chia batch size 
           for batch_id in range(len(vector_train)//batch_size):
               batch_input= vector_train[batch_id*batch_size:(batch_id+1)*batch_size]
               batch_label= label_train[batch_id*batch_size:(batch_id+1)*batch_size]
@@ -187,8 +200,11 @@ if __name__ == "__main__":
               batch_input= np.asarray(batch_input)
               batch_label=np.asarray(batch_label)
               rf=np.asarray(rf)
+              #training cung voi du lieu train
               sess.run(optimizer,feed_dict={x:batch_input,y:batch_label,z:rf,keep_prob:drop_out})
+          #tinh loss_train, acc_train sau moi epoch
           loss,acc=sess.run([cost,accuracy],feed_dict={x:batch_input,y:batch_label,z:rf,keep_prob:1.})
+          #tinh loss_val, acc_val sau moi epoch
           loss_val,acc_val=sess.run([cost,accuracy],feed_dict={x:vector_val,y:label_val,z:rf_val,keep_prob:1.})
           print("Epoch",epoch,":Loss= ","{:.6f}".format(loss), ", Accuracy= ","{:.5f}".format(acc),"|| Loss_val: ","{:.6f}".format(loss_val),", Accuracy_val= ","{:.5f}".format(acc_val))
       y_pred=sess.run(predict,feed_dict={x:vector_test,y:label_test,z:rf_test,keep_prob:1.})
